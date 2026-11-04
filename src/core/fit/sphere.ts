@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // The sphere's best fit: Coope's algebraic fit, linear and dependable, as a
-// start, then the orthogonal-distance fixed-point iteration that makes it the
+// start, then the orthogonal-distance Levenberg–Marquardt that makes it the
 // Gaussian best fit, once per round of the "used points" clipping. The robust
 // estimate a click starts from lives in ransac.ts.
 //
@@ -63,49 +63,88 @@ function fitSphereAlgebraic(positions: Float32Array, idx: ArrayLike<number>): Sp
   return { cx: mx + u[0], cy: my + u[1], cz: mz + u[2], r: Math.sqrt(r2) }
 }
 
-/** Geometric (orthogonal-distance) refinement minimizing Σ(dᵢ − r)² via the
- *  standard fixed-point iteration c ← x̄ − r̄·ū. This is the Gaussian best-fit. */
+/** Sum of squared orthogonal residuals of a sphere, points at its centre
+ *  left out. */
+function sphereCost(positions: Float32Array, idx: ArrayLike<number>, s: Sphere): number {
+  let ss = 0
+  for (let i = 0; i < idx.length; i++) {
+    const j = idx[i] * 3
+    const d = Math.hypot(positions[j] - s.cx, positions[j + 1] - s.cy, positions[j + 2] - s.cz)
+    if (d < 1e-12) continue
+    ss += (d - s.r) ** 2
+  }
+  return ss
+}
+
+/** Geometric (orthogonal-distance) refinement minimizing Σ(dᵢ − r)² over the
+ *  centre and the radius together by Levenberg–Marquardt — the Gaussian
+ *  best-fit. Not the fixed-point iteration c ← x̄ − r̄·ū: its rate of
+ *  convergence goes to 1 as the cap shrinks, and on a 15° cap with 0.02 of
+ *  noise it stopped at its iteration cap with the radius 0.36 mm short of
+ *  the least-squares one. Gauss–Newton converges quadratically near the
+ *  minimum whatever the cap; a step is kept only when it lowers the cost. */
 function refineSphereGeometric(
   positions: Float32Array,
   idx: ArrayLike<number>,
   init: Sphere,
-  maxIter = 150,
+  maxIter = 100,
 ): Sphere {
   const n = idx.length
   if (n === 0) return init
 
-  const [mx, my, mz] = centroidOf(positions, idx)
-
-  let cx = init.cx, cy = init.cy, cz = init.cz, r = init.r
-  for (let iter = 0; iter < maxIter; iter++) {
-    let sd = 0, sux = 0, suy = 0, suz = 0, m = 0
+  let s = init
+  let cost = sphereCost(positions, idx, s)
+  if (!Number.isFinite(cost)) return init
+  let lambda = 1e-6
+  for (let iter = 0; iter < maxIter && cost > 0; iter++) {
+    const jtj = new Float64Array(16)
+    const jte = new Float64Array(4)
+    const row = new Float64Array(4)
     for (let i = 0; i < n; i++) {
       const j = idx[i] * 3
-      const dx = positions[j] - cx
-      const dy = positions[j + 1] - cy
-      const dz = positions[j + 2] - cz
+      const dx = positions[j] - s.cx
+      const dy = positions[j + 1] - s.cy
+      const dz = positions[j + 2] - s.cz
       const d = Math.sqrt(dx * dx + dy * dy + dz * dz)
       if (d < 1e-12) continue
-      sd += d
-      sux += dx / d
-      suy += dy / d
-      suz += dz / d
-      m++
+      const e = d - s.r
+      row[0] = -dx / d
+      row[1] = -dy / d
+      row[2] = -dz / d
+      row[3] = -1
+      for (let a = 0; a < 4; a++) {
+        jte[a] += row[a] * e
+        for (let b = 0; b < 4; b++) jtj[a * 4 + b] += row[a] * row[b]
+      }
     }
-    if (m === 0) break
-    const rNew = sd / m
-    const ncx = mx - rNew * (sux / m)
-    const ncy = my - rNew * (suy / m)
-    const ncz = mz - rNew * (suz / m)
-    const move = Math.sqrt((ncx - cx) ** 2 + (ncy - cy) ** 2 + (ncz - cz) ** 2)
-    cx = ncx
-    cy = ncy
-    cz = ncz
-    r = rNew
-    if (move < 1e-10 * Math.max(1, r)) break
+    let kept = false
+    let done = false
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const mat = jtj.slice()
+      for (let a = 0; a < 4; a++) mat[a * 4 + a] *= 1 + lambda
+      const step = solveLinear(4, mat, Float64Array.from(jte, (x) => -x))
+      if (!step) {
+        lambda *= 10
+        continue
+      }
+      const cand: Sphere = { cx: s.cx + step[0], cy: s.cy + step[1], cz: s.cz + step[2], r: s.r + step[3] }
+      const candCost = cand.r > 0 ? sphereCost(positions, idx, cand) : Infinity
+      if (Number.isFinite(candCost) && candCost <= cost) {
+        done =
+          cost - candCost <= 1e-15 * cost ||
+          Math.hypot(step[0], step[1], step[2], step[3]) < 1e-13 * Math.max(1, cand.r)
+        s = cand
+        cost = candCost
+        lambda = Math.max(lambda * 0.3, 1e-12)
+        kept = true
+        break
+      }
+      lambda *= 10
+    }
+    if (!kept || done) break
   }
-  if (!Number.isFinite(cx) || !Number.isFinite(r)) return init
-  return { cx, cy, cz, r }
+  if (!Number.isFinite(s.cx) || !Number.isFinite(s.r)) return init
+  return s
 }
 
 /** The centre of the sphere of radius `r` that fits best — Gauss–Newton on

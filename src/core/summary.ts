@@ -20,7 +20,7 @@ import {
 } from './elements/extend'
 import { directionOf, isOrientable, referenceName, relationWord, type Orient } from './elements/orient'
 import { acuteAngle } from './vec'
-import { fmtLen, unitWord, type DisplayUnits } from './units'
+import { fixedText, fmtLen, unitWord, type DisplayUnits } from './units'
 
 export const SIGMA_LABELS: Record<SigmaPreset, string> = {
   0: 'All points',
@@ -45,7 +45,7 @@ export interface MeasuredElement {
 
 /** A direction: unit-less, four decimals. */
 function formatVec(v: Vec3): string {
-  return `(${v[0].toFixed(4)}, ${v[1].toFixed(4)}, ${v[2].toFixed(4)})`
+  return `(${v.map((c) => fixedText(c, 4)).join(', ')})`
 }
 
 /** A position: its coordinates are lengths, written bare in `units` — the
@@ -138,7 +138,7 @@ export function formatDetail(fit: FitData, units: DisplayUnits = 'mm'): string {
     case 'point':
       return `at ${formatPos(fit.center, units, 3)}`
     case 'line':
-      return `direction (${fit.dir.map((v) => v.toFixed(4)).join(', ')})`
+      return `direction ${formatVec(fit.dir)}`
   }
 }
 

@@ -22,7 +22,7 @@ import {
   sub,
 } from '../vec'
 import { orthoBasis } from '../fit/linalg'
-import { fmtLen, type DisplayUnits } from '../units'
+import { fixedText, fmtLen, type DisplayUnits } from '../units'
 import type { RefRole } from './refs'
 import { refAxis, refPlane, refPoint } from './refs'
 
@@ -518,8 +518,12 @@ export function evaluateConstruction(
       const p = need(refPlane(refs[0]), 'the source plane')
       const [offset] = params
       if (!Number.isFinite(offset)) throw new ConstructionError('Enter the offset distance.')
+      // The source's form error and residual extremes stay with the source:
+      // a constructed plane has no measured surface, and carrying them would
+      // give a flatness and a surface range to a plane nothing was measured on.
+      const { formError: _form, residualMin: _lo, residualMax: _hi, ...shape } = p
       return {
-        ...p,
+        ...shape,
         ...NO_FIT_STATS,
         center: addScaled(p.center, p.normal, offset),
       } satisfies PlaneFit
@@ -535,8 +539,17 @@ export function evaluateConstruction(
       // Opposing faces have opposing normals; align B to A so the average
       // means something either way.
       const nb: Vec3 = dot(pa.normal, pb.normal) < 0 ? scale(pb.normal, -1) : pb.normal
-      const normal = normalize(add(pa.normal, nb))!
-      const center = mid(pa.center, pb.center)
+      const sum = add(pa.normal, nb)
+      const normal = normalize(sum)!
+      // The bisector is where the two signed distances cancel,
+      // (na + nb)·x = na·ca + nb·cb. The midpoint of the two centres lies on
+      // it only when the planes are exactly parallel or the patches face each
+      // other straight across, so it is dropped onto the bisector: two faces
+      // 2° apart with patches 50 mm apart along them otherwise give a
+      // midplane 0.4 mm nearer the one than the other.
+      const m = mid(pa.center, pb.center)
+      const h = (dot(pa.normal, pa.center) + dot(nb, pb.center)) / len(sum)
+      const center = addScaled(m, normal, h - dot(normal, m))
       const u = normalize(addScaled(pa.basisU, normal, -dot(pa.basisU, normal)))
       const basisU = u ?? orthoBasis(normal)[0]
       const basisV = cross(normal, basisU)
@@ -679,7 +692,7 @@ export function describeConstruction(
     case 'plane-midplane':
       return `midplane of ${a} and ${b}`
     case 'plane-coords':
-      return `normal (${params.slice(0, 3).map((v) => v.toFixed(3)).join(', ')}) through ${at(params.slice(3))}`
+      return `normal (${params.slice(0, 3).map((v) => fixedText(v, 3)).join(', ')}) through ${at(params.slice(3))}`
     case 'plane-symmetry': {
       const [, , , , , , rms, matched, sampled] = params
       const fit =
@@ -694,7 +707,7 @@ export function describeConstruction(
     case 'circle-coords':
       return `Ø ${fmtLen(params[0], units, 3)}, normal (${params
         .slice(1, 4)
-        .map((v) => v.toFixed(3))
+        .map((v) => fixedText(v, 3))
         .join(', ')}) at ${at(params.slice(4))}`
     default:
       return method

@@ -259,7 +259,13 @@ function orientation(
   // A plane against a plane, or an axis against an axis, sit at the basic
   // angle by their own directions; mixed pairs are a quarter turn off it —
   // an axis parallel to a plane is perpendicular to the plane's normal.
-  const rho = (feature.kind === datum.kind ? basic : 90 - basic) * DEG
+  // The basic angle folded the same way, into 0–90°: a face drawn at 120°
+  // to its datum stands to it exactly as one at 60° does, and the feature
+  // has just been folded onto the datum's side, where an unfolded 120° would
+  // turn the ideal away from it and read the face 60° off.
+  const turn = Math.abs(basic) % 180
+  const acute = turn > 90 ? 180 - turn : turn
+  const rho = (feature.kind === datum.kind ? acute : 90 - acute) * DEG
   const hinge = normalize(cross(datum.dir, f)) ?? orthoBasis(datum.dir)[0]
   const ideal = rotate(datum.dir, hinge, rho)
   // A plane spreads across its zone along the ideal normal; an axis across

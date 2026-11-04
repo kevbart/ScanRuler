@@ -16,8 +16,8 @@ export interface Circle2d {
 
 /**
  * Best-fit circle through 2D points — algebraic (Coope) start, exactly
- * determined for three points and least squares beyond, then the 2D form of
- * the orthogonal-distance fixed-point iteration (a no-op for three points).
+ * determined for three points and least squares beyond, then damped
+ * Gauss–Newton to the orthogonal-distance minimum (a no-op for three points).
  * Null when the points do not determine a circle.
  */
 export function fitCircle2d(pu0: ArrayLike<number>, pv0: ArrayLike<number>): Circle2d | null {
@@ -68,30 +68,84 @@ export function fitCircle2d(pu0: ArrayLike<number>, pv0: ArrayLike<number>): Cir
   if (!(r2 > 0) || !Number.isFinite(r2)) return null
   let r = Math.sqrt(r2)
 
-  // Orthogonal-distance refinement.
-  for (let iter = 0; iter < 100; iter++) {
-    let sd = 0, sxu = 0, sxv = 0, m = 0
-    for (let i = 0; i < n; i++) {
-      const du = pu[i] - cu
-      const dv = pv[i] - cv
-      const dist = Math.hypot(du, dv)
-      if (dist < 1e-12) continue
-      sd += dist
-      sxu += du / dist
-      sxv += dv / dist
-      m++
-    }
-    if (m === 0) break
-    const rNew = sd / m
-    const nu = su / n - rNew * (sxu / m)
-    const nv = sv / n - rNew * (sxv / m)
-    const move = Math.hypot(nu - cu, nv - cv)
-    cu = nu
-    cv = nv
-    r = rNew
-    if (move < 1e-10 * Math.max(1, r)) break
-  }
+  // Orthogonal-distance refinement: damped Gauss–Newton on Σ(|p − c| − r)²
+  // over the centre and the radius together. Not the fixed-point iteration
+  // c ← p̄ − r·ū, which converges at a rate that goes to 1 as the arc gets
+  // shorter: on 30° of a noisy arc it stopped, iteration cap reached, with
+  // the radius several noise widths off the least-squares one.
+  const refined = refineCircle2d(pu, pv, { cu, cv, r })
+  cu = refined.cu
+  cv = refined.cv
+  r = refined.r
   if (!Number.isFinite(cu) || !Number.isFinite(cv) || !Number.isFinite(r) || !(r > 0)) return null
 
   return { cu: cu + mu, cv: cv + mv, r }
+}
+
+/** Sum of squared orthogonal residuals of a circle, points at its centre
+ *  left out. */
+function circleCost(pu: Float64Array, pv: Float64Array, c: Circle2d): number {
+  let ss = 0
+  for (let i = 0; i < pu.length; i++) {
+    const d = Math.hypot(pu[i] - c.cu, pv[i] - c.cv)
+    if (d < 1e-12) continue
+    ss += (d - c.r) ** 2
+  }
+  return ss
+}
+
+/** Levenberg–Marquardt on the three circle parameters: each step solves the
+ *  damped normal equations, is kept only when it lowers the cost, and the
+ *  damping eases off after a kept step and stiffens after a refused one.
+ *  Gauss–Newton converges quadratically near the minimum however short the
+ *  arc, where the fixed-point iteration crawls. */
+function refineCircle2d(pu: Float64Array, pv: Float64Array, init: Circle2d): Circle2d {
+  let c = init
+  let cost = circleCost(pu, pv, c)
+  if (!Number.isFinite(cost)) return init
+  let lambda = 1e-6
+  for (let iter = 0; iter < 100 && cost > 0; iter++) {
+    const jtj = new Float64Array(9)
+    const jte = new Float64Array(3)
+    for (let i = 0; i < pu.length; i++) {
+      const du = pu[i] - c.cu
+      const dv = pv[i] - c.cv
+      const d = Math.hypot(du, dv)
+      if (d < 1e-12) continue
+      // The residual's gradient is (−du/d, −dv/d, −1); spelled out rather
+      // than held in an array, as this runs per point per step and the
+      // cylinder, cone and torus seeds all come through here.
+      const e = d - c.r
+      const gu = -du / d, gv = -dv / d
+      jte[0] += gu * e; jte[1] += gv * e; jte[2] -= e
+      jtj[0] += gu * gu; jtj[1] += gu * gv; jtj[2] -= gu
+      jtj[4] += gv * gv; jtj[5] -= gv
+      jtj[8] += 1
+    }
+    jtj[3] = jtj[1]; jtj[6] = jtj[2]; jtj[7] = jtj[5] // symmetric: the lower half from the upper
+    let kept = false
+    let done = false
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const mat = jtj.slice()
+      for (let a = 0; a < 3; a++) mat[a * 3 + a] *= 1 + lambda
+      const step = solveLinear(3, mat, Float64Array.from(jte, (x) => -x))
+      if (!step) {
+        lambda *= 10
+        continue
+      }
+      const cand = { cu: c.cu + step[0], cv: c.cv + step[1], r: c.r + step[2] }
+      const candCost = cand.r > 0 ? circleCost(pu, pv, cand) : Infinity
+      if (Number.isFinite(candCost) && candCost <= cost) {
+        done = cost - candCost <= 1e-15 * cost || Math.hypot(step[0], step[1], step[2]) < 1e-13 * Math.max(1, cand.r)
+        c = cand
+        cost = candCost
+        lambda = Math.max(lambda * 0.3, 1e-12)
+        kept = true
+        break
+      }
+      lambda *= 10
+    }
+    if (!kept || done) break
+  }
+  return c
 }

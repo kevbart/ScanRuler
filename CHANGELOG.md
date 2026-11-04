@@ -10,6 +10,24 @@ saves carry the same number as `appVersion`. How a release is cut is in
 - **Contributors are credited** (2026-11-01). Each publish to this repository now
   names the people whose work it brings as co-authors, starting with Jozkah and
   Starzrng. CONTRIBUTING.md says how it works.
+- **Circles and spheres fit to the least-squares answer on short arcs** (2026-11-03,
+  3D Measure, 2D Measure). The fit's last step crawled when only a little of the
+  feature was there, and stopped at its limit short of the best fit: on 15° of a
+  ball with 0.02 mm of noise the diameter came out about 0.7 mm small. It now
+  steps to the minimum on any arc. Picked circles, the starts of cylinder, cone
+  and torus fits, circles on the 2D sheet and the known-diameter readout follow.
+- **A midplane of two faces that are not quite parallel lies in the middle**
+  (2026-11-03, 3D Measure). Its centre was the midpoint of the two patches, which
+  is off the bisector when the faces lean: 2° apart with the patches 50 mm along
+  each other put the plane 0.4 mm nearer one face.
+- **An offset plane has no flatness of its own** (2026-11-03, 3D Measure). It
+  carried its source face's form error, so Flatness on it read the face's and a
+  Point – Plane to it gave a surface range nothing was measured on.
+- **Angularity at an obtuse basic angle** (2026-11-03, 3D Measure). A face at
+  exactly 120° to its datum, dimensioned 120°, read a zone of 17 mm on a 20 mm
+  patch instead of 0. The angle is now read the same way the face is.
+- **No "-0.00" in readouts** (2026-11-03). A value a hair under zero printed with
+  its sign: Δ -0.00°, a normal of (-0.000, …).
 
 ## 0.9.4 — 2026-11-01
 
