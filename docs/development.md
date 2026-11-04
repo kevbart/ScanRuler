@@ -7,7 +7,20 @@ npm run dev       # local dev server
 npm test          # unit tests + ballbar.stl and deviation acceptance tests
 npm run build     # type-check + production build to dist/
 npm run e2e:ci    # generated-fixture browser tests; run after building
+npm run check     # all of the above in CI's order, with each suite's check count
 ```
+
+`npm run check` (`scripts/check-all.mjs`) runs what CI runs — the plugin
+boundary and units checks, the unit tests, the agent server's tests, the
+type-checked build, the headless engine built and started
+(`scripts/engine-smoke.mjs`, the file `scanruler-mcp --engine` loads) and the
+browser checks — and prints how many checks each ran. Run it once green with
+`--update-baseline` to keep those counts in `e2e-out/check-all/baseline.json`;
+from then on a suite whose count falls fails the run, as does one that reports
+no count at all, because a suite that stops running checks still exits 0.
+The baseline is per machine: the acceptance tests run only where their scan
+files are. `--fast` leaves out the builds and the browser; `--only vitest,mcp`
+picks steps.
 
 The optional local fixtures are `ballbar.stl`, a real 3D scan of a ball bar used
 by `tests/ballbar.test.ts`, and the pair `side bracket left.stl` /

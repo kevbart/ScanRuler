@@ -10,6 +10,12 @@ saves carry the same number as `appVersion`. How a release is cut is in
 - **Contributors are credited** (2026-11-01). Each publish to this repository now
   names the people whose work it brings as co-authors, starting with Jozkah and
   Starzrng. CONTRIBUTING.md says how it works.
+- **`npm run check` runs every check CI runs** (2026-11-03, development). The
+  plugin boundary, units, unit tests, the agent server, the build, the built
+  headless engine started and asked (scripts/engine-smoke.mjs) and the browser
+  checks, in CI's order — and it compares each suite's count of checks with the
+  last green run on the machine, so a suite that quietly stops running checks
+  fails. `--fast` leaves out the builds and the browser.
 
 ## 0.9.4 — 2026-11-01
 
