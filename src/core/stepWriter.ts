@@ -30,13 +30,36 @@ export function vec(v: Vec3): string {
   return `${num(v[0])},${num(v[1])},${num(v[2])}`
 }
 
-/** STEP string literal payload: quotes doubled, non-ASCII replaced — element
- *  names are plain ASCII, this only guards pasted file names. */
+/** STEP string literal payload, to ISO 10303-21 §6.4.3: quotes and
+ *  backslashes doubled, and every character outside printable ASCII — all an
+ *  exchange structure may hold — written with the \X2\ (UTF-16) or, past the
+ *  basic plane, \X4\ (UTF-32) directive, closed by \X0\. Replacing them with
+ *  '?' instead lost the user's names: "Fläche Ø12" reached CAD as
+ *  "Fl?che ?12", and two names that differed only there became one. */
 export function esc(s: string): string {
-  return s
-    .replace(/'/g, "''")
-    .replace(/\\/g, '\\\\')
-    .replace(/[^\x20-\x7e]/g, '?')
+  let out = ''
+  let run: string[] = []
+  let runKind = ''
+  const close = () => {
+    if (run.length > 0) out += `\\${runKind}\\${run.join('')}\\X0\\`
+    run = []
+  }
+  for (const ch of s) {
+    const code = ch.codePointAt(0)!
+    if (code >= 0x20 && code <= 0x7e) {
+      close()
+      out += ch === "'" ? "''" : ch === '\\' ? '\\\\' : ch
+      continue
+    }
+    const kind = code > 0xffff ? 'X4' : 'X2'
+    if (kind !== runKind) close()
+    runKind = kind
+    // A lone surrogate names no character; U+FFFD says so.
+    const unit = code >= 0xd800 && code <= 0xdfff ? 0xfffd : code
+    run.push(unit.toString(16).toUpperCase().padStart(kind === 'X4' ? 8 : 4, '0'))
+  }
+  close()
+  return out
 }
 
 export class StepWriter {
