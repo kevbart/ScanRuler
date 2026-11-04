@@ -251,8 +251,35 @@ function patchFor(
   const mesh = new PatchMesh(pos, tris)
   refine(mesh, sigma)
   const free = mesh.pos.length / 3 - n
-  fair(mesh, n, positions, loop.vertices, adjacency, mode, Math.min(MAX_FAIR_ITERATIONS, 50 + 2 * free))
+  const iterations = Math.min(MAX_FAIR_ITERATIONS, 50 + 2 * free)
+  const laid = mesh.pos.slice()
+  fair(mesh, n, positions, loop.vertices, adjacency, mode, iterations)
+  // Curved reads the surface's bending off the scan one ring out from the
+  // rim, and where that ring is no smooth surface — a rim along a sharp edge,
+  // a scan of long thin triangles as a CAD tessellation has, a cylinder's
+  // wall a quad from end to end — it asks for a bend the surface does not
+  // have: the patch balloons millimetres off the part and turns triangles
+  // over. A patch that folds is no patch; the tightest one across the rim,
+  // Flat's, is laid instead.
+  if (mode === 'curved' && turnsOver(laid, mesh.pos, mesh.tris)) {
+    mesh.pos.splice(0, mesh.pos.length, ...laid)
+    fair(mesh, n, positions, loop.vertices, adjacency, 'flat', iterations)
+  }
   return { pos: mesh.pos, tris: mesh.tris }
+}
+
+/** Whether any triangle faces the other way in `after` from the way it
+ *  faced in `before` — the patch as refined, before it was faired. */
+function turnsOver(before: number[], after: number[], tris: number[]): boolean {
+  const nb = new Float64Array(3)
+  const na = new Float64Array(3)
+  for (let t = 0; t < tris.length; t += 3) {
+    const a = tris[t], b = tris[t + 1], c = tris[t + 2]
+    if (!(unitNormalOf(before, a, b, c, nb, 0))) continue
+    if (!unitNormalOf(after, a, b, c, na, 0)) return true
+    if (nb[0] * na[0] + nb[1] * na[1] + nb[2] * na[2] <= 0) return true
+  }
+  return false
 }
 
 /** The fairing solver's passes at the most. A large patch is smooth long

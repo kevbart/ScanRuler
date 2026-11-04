@@ -225,6 +225,11 @@ export function reduceMesh(
   // Written in place by every pass — the same vertices each time, so the
   // last pass leaves the whole field its own.
   const deviation = new Float32Array(scan.vertexCount).fill(NaN)
+  // The reduced surface is measured back as densely as the scan measures it
+  // forward — a point every scan edge or so — or the furthest it stands off
+  // is read low: see reducedToScan.
+  const backSpacing = scanEdge(scan)
+  const backBudget = BACK_SAMPLES_PER_VERTEX * usedCount
 
   const run = (target: number, triangles: number, pins: Uint8Array | null): Measured => {
     const indices = scan.indices.slice()
@@ -237,7 +242,7 @@ export function reduceMesh(
     const reduced = compactEdit(positions, indices.subarray(0, count), scan.vertexCount)
     const surface = new NominalSurface(reduced.positions, reduced.indices)
     const forward = scanToReduced(surface, scan.positions, measuredVertices, deviation)
-    const back = reducedToScan(scanSurface(), reduced.positions, reduced.indices, tolerance)
+    const back = reducedToScan(scanSurface(), reduced.positions, reduced.indices, tolerance, backSpacing, backBudget)
     return { ...reduced, forward, back: back.distances, backStray: back.stray }
   }
   const holds = (r: Measured) =>
@@ -338,41 +343,149 @@ function scanToReduced(
   return out.sort()
 }
 
+/** Back samples per measured scan vertex at the most, beyond a vertex and a
+ *  middle for each reduced triangle: the spacing is widened past the scan's
+ *  own edge where its triangles would ask for more. */
+const BACK_SAMPLES_PER_VERTEX = 2
+
+/** The scan's mean edge, from an even sample of its triangles: how far
+ *  apart the reduced surface is sampled when it is measured back against
+ *  the scan — as densely as the forward measure, which takes every scan
+ *  point. */
+function scanEdge(scan: ScanMesh): number {
+  const { positions: p, indices } = scan
+  const triangles = indices.length / 3
+  if (triangles === 0) return Infinity
+  const stride = Math.max(1, Math.floor(triangles / 4096))
+  let sum = 0
+  let n = 0
+  for (let t = 0; t < triangles; t += stride) {
+    const a = indices[t * 3] * 3, b = indices[t * 3 + 1] * 3, c = indices[t * 3 + 2] * 3
+    sum +=
+      Math.hypot(p[b] - p[a], p[b + 1] - p[a + 1], p[b + 2] - p[a + 2]) +
+      Math.hypot(p[c] - p[b], p[c + 1] - p[b + 1], p[c + 2] - p[b + 2]) +
+      Math.hypot(p[a] - p[c], p[a + 1] - p[c + 1], p[a + 2] - p[c + 2])
+    n += 3
+  }
+  const edge = sum / n
+  return edge > 0 ? edge : Infinity
+}
+
 /** Distance from the reduced surface back to the scan, sorted ascending:
  *  from each of its vertices, which a collapse may have moved off the scan,
- *  and from the middle of each of its triangles, the point furthest from any
- *  vertex a large flat triangle has. With them, the corners of the scan
- *  triangle nearest every such point further off than `tolerance`. */
+ *  and from points spread over each of its triangles about the scan's `edge`
+ *  apart — further, where that would take more than `budget` of them — the
+ *  middle of each of the n² equal triangles it divides into, n its longest
+ *  edge over the spacing, so a small triangle has its middle alone — and
+ *  along each edge of a triangle so divided. Its corners and middle alone
+ *  are not enough: a triangle fanned out from a vertex pinned on a spike,
+ *  or on a corner of the scan, rises along its edges, and the top of the
+ *  rise is near neither — the furthest was read at about two thirds of what
+ *  it is. With them, the corners of the scan triangle nearest
+ *  every such point further off than `tolerance`. */
 function reducedToScan(
   scan: NominalSurface,
   positions: Float32Array,
   indices: Uint32Array,
   tolerance: number,
+  edge: number,
+  budget: number,
 ): { distances: Float64Array; stray: number[] } {
   const vertexCount = positions.length / 3
-  const distances = new Float64Array(vertexCount + indices.length / 3)
+  const triangleCount = indices.length / 3
+  const longest = new Float64Array(triangleCount)
+  for (let t = 0; t < triangleCount; t++) {
+    const a = indices[t * 3] * 3, b = indices[t * 3 + 1] * 3, c = indices[t * 3 + 2] * 3
+    longest[t] = Math.max(
+      Math.hypot(positions[b] - positions[a], positions[b + 1] - positions[a + 1], positions[b + 2] - positions[a + 2]),
+      Math.hypot(positions[c] - positions[b], positions[c + 1] - positions[b + 1], positions[c + 2] - positions[b + 2]),
+      Math.hypot(positions[a] - positions[c], positions[a + 1] - positions[c + 1], positions[a + 2] - positions[c + 2]),
+    )
+  }
+  // The spacing: the scan's edge, widened until the samples past a middle a
+  // triangle — n² − 1 inside it, about 3(n − 1)/2 along its edges — fit the
+  // budget.
+  const divisions = new Uint32Array(triangleCount)
+  let spacing = edge
+  for (let round = 0; round < 8; round++) {
+    let extra = 0
+    for (let t = 0; t < triangleCount; t++) {
+      const n = Math.max(1, Math.ceil(longest[t] / spacing))
+      divisions[t] = n
+      extra += n * n - 1 + (3 * (n - 1)) / 2
+    }
+    if (extra <= budget) break
+    spacing *= Math.max(1.1, Math.sqrt(extra / budget))
+  }
+  let samples = vertexCount
+  for (let t = 0; t < triangleCount; t++) samples += divisions[t] * divisions[t]
+  // Each edge once, by its ends — where a triangle fanned out from a pinned
+  // vertex rises highest. A closed mesh has every edge twice, an open one
+  // its rim once.
+  const edges = new Map<number, number>()
+  for (let t = 0; t < triangleCount; t++) {
+    const n = divisions[t]
+    if (n < 2) continue
+    for (let k = 0; k < 3; k++) {
+      const p = indices[t * 3 + k]
+      const q = indices[t * 3 + ((k + 1) % 3)]
+      const key = p < q ? p * vertexCount + q : q * vertexCount + p
+      if (edges.has(key)) continue
+      const a = p * 3, b = q * 3
+      const m = Math.ceil(Math.hypot(positions[b] - positions[a], positions[b + 1] - positions[a + 1], positions[b + 2] - positions[a + 2]) / spacing)
+      edges.set(key, m)
+      samples += Math.max(0, m - 1)
+    }
+  }
+  const distances = new Float64Array(samples)
   const stray: number[] = []
   const hit = emptyHit()
-  const probe = (x: number, y: number, z: number, i: number) => {
-    scan.closest(x, y, z, hit)
-    distances[i] = hit.distance
+  let i = 0
+  const probe = (x: number, y: number, z: number) => {
+    // Searched within the tolerance first, which prunes most of the scan's
+    // tree, and only a point further off than it searched again in full:
+    // the distance comes out the same either way.
+    if (!scan.closest(x, y, z, hit, tolerance)) scan.closest(x, y, z, hit)
+    distances[i++] = hit.distance
     if (hit.distance <= tolerance) return
     // The surface's own index buffer — reordered by its tree, but naming
     // the scan's vertices all the same.
     const f = hit.faceIndex * 3
     stray.push(scan.index[f], scan.index[f + 1], scan.index[f + 2])
   }
-  for (let v = 0; v < vertexCount; v++) probe(positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2], v)
-  for (let t = 0; t < indices.length; t += 3) {
-    const a = indices[t] * 3
-    const b = indices[t + 1] * 3
-    const c = indices[t + 2] * 3
-    probe(
-      (positions[a] + positions[b] + positions[c]) / 3,
-      (positions[a + 1] + positions[b + 1] + positions[c + 1]) / 3,
-      (positions[a + 2] + positions[b + 2] + positions[c + 2]) / 3,
-      vertexCount + t / 3,
-    )
+  for (let v = 0; v < vertexCount; v++) probe(positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2])
+  for (let t = 0; t < triangleCount; t++) {
+    const a = indices[t * 3] * 3, b = indices[t * 3 + 1] * 3, c = indices[t * 3 + 2] * 3
+    const n = divisions[t]
+    // The middles of the sub-triangles, in barycentric steps of 1/n: those
+    // pointing the way the triangle does at (p + ⅓, q + ⅓), the others,
+    // between them, at (p + ⅔, q + ⅔).
+    for (let p = 0; p < n; p++) {
+      for (let q = 0; p + q < n; q++) {
+        for (let k = 0; k < (p + q < n - 1 ? 2 : 1); k++) {
+          const u = (p + (k === 0 ? 1 / 3 : 2 / 3)) / n
+          const w = (q + (k === 0 ? 1 / 3 : 2 / 3)) / n
+          const s = 1 - u - w
+          probe(
+            s * positions[a] + u * positions[b] + w * positions[c],
+            s * positions[a + 1] + u * positions[b + 1] + w * positions[c + 1],
+            s * positions[a + 2] + u * positions[b + 2] + w * positions[c + 2],
+          )
+        }
+      }
+    }
+  }
+  for (const [key, m] of edges) {
+    const p = Math.floor(key / vertexCount) * 3
+    const q = (key % vertexCount) * 3
+    for (let k = 1; k < m; k++) {
+      const u = k / m
+      probe(
+        positions[p] + u * (positions[q] - positions[p]),
+        positions[p + 1] + u * (positions[q + 1] - positions[p + 1]),
+        positions[p + 2] + u * (positions[q + 2] - positions[p + 2]),
+      )
+    }
   }
   return { distances: distances.sort(), stray }
 }

@@ -179,9 +179,10 @@ export function ReduceTool({
               <InfoDot title="Measured both ways">
                 <p>
                   The figures above measure every scan point to the reduced mesh: detail it lost.
-                  This one measures the reduced mesh back to the scan — its vertices and the middle
-                  of each of its triangles — which catches a patch of it standing proud of a surface
-                  that is not there.
+                  This one measures the reduced mesh back to the scan — its vertices, and points
+                  spread across each of its triangles and along their edges at the scan's own
+                  spacing — which catches a patch of it standing proud of a surface that is not
+                  there.
                 </p>
                 <p>Furthest: {mm(r.backMax)}.</p>
               </InfoDot>
