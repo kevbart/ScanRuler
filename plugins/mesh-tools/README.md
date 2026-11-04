@@ -246,7 +246,10 @@ Each hole is closed after Liepa's *Filling holes in meshes* (2003):
   across the hole (a least-squares bi-Laplacian reaching one ring out onto
   the scan, so the patch meets it at its slope — a patch on a ball bulges
   with the ball). **Flat** lays the tightest patch across the rim, flat
-  wherever the rim is.
+  wherever the rim is. Where the ring round the rim is no smooth surface —
+  a rim along a sharp edge, the long thin triangles of a CAD tessellation —
+  a curved patch would balloon off the part and fold over; that hole is
+  given the flat patch instead.
 
 The scan's own vertices are not moved. A patch is a guess at what the
 scanner did not see, and the deviation and thickness maps read it like any

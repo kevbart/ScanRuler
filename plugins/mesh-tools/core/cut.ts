@@ -179,6 +179,15 @@ function clip(positions: Float32Array, indices: Uint32Array, vertexCount: number
   for (let t = 0; t < indices.length; t += 3) {
     const a = indices[t], b = indices[t + 1], c = indices[t + 2]
     const sa = side[a], sb = side[b], sc = side[c]
+    if (sa === 0 && sb === 0 && sc === 0 && facesAway(positions, a, b, c, n)) {
+      // A face lying in the plane bounds the material on the side it faces
+      // away from: a step's top cut along its own level, keeping what is
+      // above, faces up into what stays and bounds the block below, which
+      // goes — kept, it would hang off the part as a sheet doubled by the
+      // cap. It goes with that side.
+      removed++
+      continue
+    }
     if (sa <= 0 && sb <= 0 && sc <= 0) {
       if (!atPlane || (sa === 0 ? 1 : 0) + (sb === 0 ? 1 : 0) + (sc === 0 ? 1 : 0) >= 2) out.push(a, b, c)
       continue
@@ -206,6 +215,15 @@ function clip(positions: Float32Array, indices: Uint32Array, vertexCount: number
   }
   for (let v = vertexCount; v < total; v++) onPlane[v] = 1
   return { out, all, onPlane, removed, split }
+}
+
+/** Whether triangle a, b, c faces away from `n` — the side that goes — and
+ *  so bounds material on that side. */
+function facesAway(positions: Float32Array, a: number, b: number, c: number, n: Vec3): boolean {
+  const ax = positions[a * 3], ay = positions[a * 3 + 1], az = positions[a * 3 + 2]
+  const ux = positions[b * 3] - ax, uy = positions[b * 3 + 1] - ay, uz = positions[b * 3 + 2] - az
+  const vx = positions[c * 3] - ax, vy = positions[c * 3 + 1] - ay, vz = positions[c * 3 + 2] - az
+  return (uy * vz - uz * vy) * n[0] + (uz * vx - ux * vz) * n[1] + (ux * vy - uy * vx) * n[2] < 0
 }
 
 /** The flat faces closing the rim the cut left in `triangles`, and the

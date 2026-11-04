@@ -10,6 +10,19 @@ saves carry the same number as `appVersion`. How a release is cut is in
 - **Contributors are credited** (2026-11-01). Each publish to this repository now
   names the people whose work it brings as co-authors, starting with Jozkah and
   Starzrng. CONTRIBUTING.md says how it works.
+- **Reduce mesh measures its result back to the scan across its triangles**
+  (2026-11-03, Mesh Tools). Furthest off the scan was read at the reduced mesh's
+  corners and the middle of each triangle only, and missed the ridge a triangle
+  fanned from a corner rises to: 0.056 mm reported where 0.091 mm stood. It now
+  also samples across and along every triangle, which on a large scan makes a
+  reduction about twice as slow.
+- **Curved Fill holes no longer balloons on long thin triangles** (2026-11-03,
+  Mesh Tools). On a CAD-tessellated wall the curved patch could swell 2 mm off the
+  part and fold over; where curved filling would fold a triangle over, the flat
+  fill is used instead.
+- **A cut at the level of a face stays closed** (2026-11-03, Mesh Tools). A
+  triangle lying in the cut plane was always kept, and where it bounded what was
+  cut away it was left hanging as a sheet the cap then doubled.
 
 ## 0.9.4 — 2026-11-01
 
