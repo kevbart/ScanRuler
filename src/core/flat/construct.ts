@@ -235,11 +235,13 @@ export function collectsEdgePoints(m: FlatMethod): boolean {
 }
 
 /** Fit a pick-mode method from its collected points. `spline` is read by the
- *  spline method alone. */
+ *  spline method alone; `pixel` — one image pixel in the points' units — by
+ *  the region fits, whose stray band has a floor of a fraction of a pixel. */
 export function evaluateFlatPicks(
   methodId: string,
   points: readonly Vec2[],
   spline: SplinePickOptions = {},
+  pixel = 1,
 ): FlatFit {
   switch (methodId) {
     case 'flat-spline-pick':
@@ -263,11 +265,11 @@ export function evaluateFlatPicks(
     case 'flat-arc-pick':
       return fitArcPoints(points)
     case 'flat-line-edge':
-      return fitLineRegion(points)
+      return fitLineRegion(points, pixel)
     case 'flat-circle-edge':
-      return fitCircleRegion(points)
+      return fitCircleRegion(points, pixel)
     case 'flat-arc-edge':
-      return fitArcRegion(points)
+      return fitArcRegion(points, pixel)
     default:
       throw new Error(`"${methodId}" is not a pick method.`)
   }

@@ -59,7 +59,13 @@ export function scaleLine(r: FlatReportInput): string {
       : `Scale: CALIBRATED, X ${per(r.pxPerMm.x)} / Y ${per(r.pxPerMm.y)} ${word}`
   }
   if (r.calSource === 'metadata' && r.pxPerMm) {
-    return `Scale: UNCALIBRATED — nominal ${(r.pxPerMm.x * 25.4).toFixed(0)} dpi from file metadata`
+    // A file may declare its two axes apart, and the sheet measures with
+    // both — so the line names both whenever they differ.
+    const x = (r.pxPerMm.x * MM_PER_INCH).toFixed(0)
+    const y = (r.pxPerMm.y * MM_PER_INCH).toFixed(0)
+    return x === y
+      ? `Scale: UNCALIBRATED — nominal ${x} dpi from file metadata`
+      : `Scale: UNCALIBRATED — nominal X ${x} / Y ${y} dpi from file metadata`
   }
   return 'Scale: UNCALIBRATED — no scale, all values in PIXELS'
 }
