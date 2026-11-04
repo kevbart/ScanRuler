@@ -7,10 +7,55 @@
 // display units: the field converts both ways, writes the unit itself, and
 // takes step and min in millimetres like the value.
 
-import { useRef, type ReactNode } from 'react'
+import { useRef, useState, type InputHTMLAttributes, type ReactNode } from 'react'
 import { useUnits } from '../app/useUnits'
 import { fromDisplay, lengthInputText, lengthStep, toDisplay, unitWord, type DisplayUnits } from '../core/units'
 import { InfoDot } from './InfoDot'
+import { readTyped, type TypedRule } from './typedNumber'
+
+/**
+ * A number input that changes its value live — every key, the spinner — and
+ * can still be typed into when the value is clamped or refused: the text stays
+ * the hand's while the field is in use, only a value `rule` takes as it stands
+ * reaches `onValue` (in what was typed: display units for a length), and the
+ * field shows `shown` again once it is left. `onDone` runs on leaving it
+ * (blur, or Enter). See typedNumber.ts for why a plain controlled field cannot.
+ */
+export function TypedNumberInput({
+  shown,
+  rule,
+  onValue,
+  onDone,
+  ...input
+}: {
+  shown: string
+  rule: TypedRule
+  onValue: (typed: number | null) => void
+  onDone?: () => void
+} & Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'defaultValue' | 'onChange' | 'onBlur'>) {
+  const [draft, setDraft] = useState<string | null>(null)
+  return (
+    <input
+      {...input}
+      type="number"
+      value={draft ?? shown}
+      onChange={(e) => {
+        const text = e.target.value
+        setDraft(text)
+        const typed = readTyped(text, rule)
+        if (typed.ok) onValue(typed.value)
+      }}
+      onBlur={() => {
+        setDraft(null)
+        onDone?.()
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+        input.onKeyDown?.(e)
+      }}
+    />
+  )
+}
 
 /** What a field shows and accepts, given what it holds: the conversion a
  *  length field makes, or none. */

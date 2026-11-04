@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useUnits } from '../../../src/app/useUnits'
-import { lengthField } from '../../../src/ui/NumberField'
+import { lengthField, TypedNumberInput } from '../../../src/ui/NumberField'
 import type { SketchChains } from '../app/useReverseWorkspace'
 import { DEFAULT_FIT_OPTIONS, type FitOptions } from '../core/fitOptions'
 import { useRePrefs } from '../state/rePrefs'
@@ -123,22 +123,19 @@ export function FitOptionsModal({ open, onClose, chainsOf }: { open: boolean; on
       <div className="setting">
         <label htmlFor="fit-tolerance">Fit tolerance</label>
         <span className="unitfield">
-          <input
+          {/* Typed, not rewritten per key: the "0" that starts 0.05 is not
+              above zero, and taken as "auto" it emptied the field under the
+              hand, so the 5 landed alone (issue 81). Blank is auto. */}
+          <TypedNumberInput
             id="fit-tolerance"
-            type="number"
             step={field.step(0.01)}
             min="0"
             data-test="sketch-tolerance"
             placeholder="auto"
-            value={tolerance === null ? '' : field.text(tolerance)}
-            onChange={(e) => {
-              const v = field.read(Number(e.target.value))
-              useReverse.getState().setSketchTolerance(e.target.value === '' || !(v > 0) ? null : v)
-            }}
-            onBlur={() => refit(options)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') refit(options)
-            }}
+            shown={tolerance === null ? '' : field.text(tolerance)}
+            rule={{ above: 0, emptyIsNone: true }}
+            onValue={(v) => useReverse.getState().setSketchTolerance(v === null ? null : field.read(v))}
+            onDone={() => refit(options)}
           />
           <i>{field.word}</i>
         </span>
@@ -160,19 +157,18 @@ export function FitOptionsModal({ open, onClose, chainsOf }: { open: boolean; on
       <div className="setting indent">
         <label htmlFor="fit-align-degrees">Within</label>
         <span className="unitfield">
-          <input
+          {/* Typed, not snapped back per key: the "0" that starts 0.5 was
+              refused and the field put back to the value held. */}
+          <TypedNumberInput
             id="fit-align-degrees"
-            type="number"
             min="0.5"
             max="10"
             step="0.5"
             data-test="fit-align-degrees"
             disabled={!options.alignAxes}
-            value={options.alignDegrees}
-            onChange={(e) => {
-              const v = Number(e.target.value)
-              if (v > 0) change({ alignDegrees: v })
-            }}
+            shown={String(options.alignDegrees)}
+            rule={{ above: 0 }}
+            onValue={(v) => v !== null && change({ alignDegrees: v })}
           />
           <i>°</i>
         </span>

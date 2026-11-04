@@ -68,6 +68,7 @@
     "e2e:reverse-cad": "node plugins/reverse/scripts/e2e-reverse-cad.mjs",
     "e2e:bracket": "node plugins/reverse/scripts/e2e-bracket.mjs",
     "e2e:fit-chains": "node plugins/reverse/scripts/e2e-fit-chains.mjs",
+    "e2e:fit-tolerance": "node plugins/reverse/scripts/e2e-fit-tolerance.mjs",
     "e2e:reverse-blank": "node plugins/reverse/scripts/e2e-reverse-blank.mjs",
     "e2e:reverse-select": "node plugins/reverse/scripts/e2e-reverse-select.mjs",
     "e2e:reverse-save": "node plugins/reverse/scripts/e2e-reverse-save.mjs"

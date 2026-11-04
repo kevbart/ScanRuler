@@ -29,6 +29,7 @@ import {
 } from '../viewer/spaceMouse'
 import { VIEW_THEMES, themeById } from '../viewer/viewThemes'
 import { useDismiss } from './useDismiss'
+import { TypedNumberInput } from './NumberField'
 
 /** The puck's six motions by 3Dconnexion's names, in the order its trainer
  *  walks through them. */
@@ -501,14 +502,16 @@ export function SettingsModal() {
         </label>
         <div className="setting">
           <label htmlFor="agentport">Port</label>
-          <input
+          {/* Typed, not reset per key: emptied to type a new port, the field
+              read as no port and was put back to the default. */}
+          <TypedNumberInput
             id="agentport"
             data-test="agent-port"
-            type="number"
             min={1}
             max={65535}
-            value={agentPort}
-            onChange={(e) => setAgentPort(Number(e.target.value))}
+            shown={String(agentPort)}
+            rule={{ integer: true, min: 1, max: 65535 }}
+            onValue={(v) => v !== null && setAgentPort(v)}
           />
           <label htmlFor="agenttoken">Token</label>
           <input

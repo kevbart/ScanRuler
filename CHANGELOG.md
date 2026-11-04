@@ -10,6 +10,12 @@ saves carry the same number as `appVersion`. How a release is cut is in
 - **Contributors are credited** (2026-11-01). Each publish to this repository now
   names the people whose work it brings as co-authors, starting with Jozkah and
   Starzrng. CONTRIBUTING.md says how it works.
+- **Number fields can be typed into** (2026-11-03, issue 81). Fields that took
+  each key as it came were rewritten under the hand as soon as a half-typed value
+  was refused or clamped: the fit tolerance 0.05 became 5, 12 polygon sides or
+  network spans became 62 or 22, align-to-axes could not be set to 0.5°, and an
+  emptied agent port snapped back to the default. They keep what is typed and
+  take each value as soon as it is one.
 
 ## 0.9.4 — 2026-11-01
 
