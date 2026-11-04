@@ -7,6 +7,12 @@ saves carry the same number as `appVersion`. How a release is cut is in
 
 ## Unreleased
 
+- **`npm run check` runs every check CI runs** (2026-11-03, development). The
+  plugin boundary, units, unit tests, the agent server, the build, the built
+  headless engine started and asked (scripts/engine-smoke.mjs) and the browser
+  checks, in CI's order — and it compares each suite's count of checks with the
+  last green run on the machine, so a suite that quietly stops running checks
+  fails. `--fast` leaves out the builds and the browser.
 - **More ways to construct points, lines and planes** (2026-11-08, issues
   45 and 46). Under Create element, 3D Measure now also builds:
   - points: the centre of a sphere, circle or torus; where three planes

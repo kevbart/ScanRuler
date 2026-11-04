@@ -20,6 +20,7 @@
     "deploy": "npm run build && npx --yes wrangler deploy",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check": "node scripts/check-all.mjs",
     "e2e:ci": "node scripts/e2e-ci.mjs",
     "e2e:production": "node scripts/e2e-production.mjs",
     "e2e:smoke": "node scripts/e2e-smoke.mjs",
