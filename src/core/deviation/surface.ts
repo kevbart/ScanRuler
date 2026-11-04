@@ -218,11 +218,19 @@ export class NominalSurface {
       let nx = uy * vz - uz * vy
       let ny = uz * vx - ux * vz
       let nz = ux * vy - uy * vx
+      // A triangle with no area — three distinct corners on one line, as CAD
+      // exports use to close a T-junction — has no normal to give. It gets a
+      // zero one rather than an arbitrary +z: it is summed into the edge
+      // pseudonormals it shares and, at its middle corner, into a vertex
+      // pseudonormal at an angle weight of π, so a made-up +z there outweighs
+      // the real faces and flips the sign of every reading along the seam on a
+      // face that looks down −z. Zero leaves those features to the real faces.
+      // Relative to the edge lengths, so the test does not depend on the units.
       const len = Math.hypot(nx, ny, nz)
-      if (len > 1e-20) {
+      if (len > 1e-12 * Math.max(ux * ux + uy * uy + uz * uz, vx * vx + vy * vy + vz * vz)) {
         nx /= len; ny /= len; nz /= len
       } else {
-        nz = 1
+        nx = 0; ny = 0; nz = 0
       }
       this.faceNormal[f * 3] = nx
       this.faceNormal[f * 3 + 1] = ny

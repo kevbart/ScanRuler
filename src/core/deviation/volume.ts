@@ -24,7 +24,7 @@ import { rigidApply, rigidInvert, type Rigid } from './rigid'
 import { emptyHit, NominalSurface } from './surface'
 import { WindingTree } from './winding'
 import { subdivideForMap, type ReferenceSamples } from './onReference'
-import { rimLoops, type RimLoop } from '../geometry/openEdges'
+import { edgeKey, rimLoops, type RimLoop } from '../geometry/openEdges'
 
 export interface VolumeMesh {
   positions: Float32Array
@@ -292,7 +292,7 @@ export function volumeDeviation(o: VolumeDeviationOptions): VolumeDeviation {
         const V = loop.vertices
         for (let e = 0; e < loop.triangles.length; e++) {
           const a = V[e], b = V[(e + 1) % V.length]
-          rimEdges.add(a < b ? a * 4_294_967_296 + b : b * 4_294_967_296 + a)
+          rimEdges.add(edgeKey(a, b))
         }
       }
       const S = o.scan.positions, SI = scanSurface.index
@@ -309,7 +309,7 @@ export function volumeDeviation(o: VolumeDeviationOptions): VolumeDeviation {
         const f = near.faceIndex * 3
         for (let k = 0; k < 3; k++) {
           const a = SI[f + k], b = SI[f + ((k + 1) % 3)]
-          if (!rimEdges.has(a < b ? a * 4_294_967_296 + b : b * 4_294_967_296 + a)) continue
+          if (!rimEdges.has(edgeKey(a, b))) continue
           if (segmentDistance(near.px, near.py, near.pz, S, a, b) < 1e-3 * h) {
             values[v] = NaN
             break

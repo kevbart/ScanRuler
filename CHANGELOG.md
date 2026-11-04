@@ -10,6 +10,17 @@ saves carry the same number as `appVersion`. How a release is cut is in
 - **Contributors are credited** (2026-11-01). Each publish to this repository now
   names the people whose work it brings as co-authors, starting with Jozkah and
   Starzrng. CONTRIBUTING.md says how it works.
+- **Deviation keeps its sign along a seam with a zero-area triangle** (2026-11-03,
+  Deviation). CAD exports close T-junctions with triangles whose corners lie on one
+  line. Such a triangle was given an upward normal, which outweighed the real faces
+  at the seam: on a face looking down, scan outside the part read as inside along
+  the whole seam, and the other way round.
+- **Open edges and volume errors on scans of more than two million points**
+  (2026-11-03). An edge was keyed by a number that is no longer exact past vertex
+  2,097,152, so two edges could share one: a rim read as closed, gaps were counted
+  twice, and in Find volume errors an inner edge could blank a reading as a rim.
+- **An STL that writes −0 opens closed** (2026-11-03). A corner at −0.0 in one
+  triangle and +0.0 in the next stayed two points, a crack through a closed part.
 
 ## 0.9.4 — 2026-11-01
 

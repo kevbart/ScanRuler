@@ -17,27 +17,45 @@ export interface MeshGap {
   length: number
 }
 
+/** A number naming the undirected edge a–b, the same either way round:
+ *  hi·(hi − 1)/2 + lo, the pair's place in the triangle of pairs. Exact in a
+ *  double up to vertex 1.3·10⁸ — far past any mesh a browser holds — where
+ *  lo·2³² + hi stops being exact at vertex 2²¹ (2,097,152, an ordinary
+ *  scan): from there two edges shared a key, an open one read as closed. The
+ *  half is taken of whichever factor is even, so the product never passes
+ *  2⁵³ before it is halved. */
+export function edgeKey(a: number, b: number): number {
+  const lo = a < b ? a : b
+  const hi = a < b ? b : a
+  return (hi % 2 === 0 ? (hi / 2) * (hi - 1) : hi * ((hi - 1) / 2)) + lo
+}
+
 /** The gaps of a welded mesh — rims of open edges joined through their
  *  vertices — largest first, at most `maxGaps` of them. */
 export function meshGaps(positions: Float32Array | Float64Array, indices: Uint32Array, maxGaps = 3): MeshGap[] {
   // A directed edge a→b counted; an undirected edge with one triangle on
   // it alone is open.
   const seen = new Map<number, number>()
-  const key = (a: number, b: number) => (a < b ? a * 4_294_967_296 + b : b * 4_294_967_296 + a)
   for (let t = 0; t + 2 < indices.length; t += 3) {
     for (let k = 0; k < 3; k++) {
       const a = indices[t + k]
       const b = indices[t + ((k + 1) % 3)]
       if (a === b) continue
-      const e = key(a, b)
+      const e = edgeKey(a, b)
       seen.set(e, (seen.get(e) ?? 0) + 1)
     }
   }
+  // The open edges read off the triangles again rather than decoded from
+  // their keys: each is on one triangle, so it is met once, in the order
+  // its key was first counted.
   const open: [number, number][] = []
-  for (const [e, n] of seen) {
-    if (n !== 1) continue
-    const a = Math.floor(e / 4_294_967_296)
-    open.push([a, e - a * 4_294_967_296])
+  for (let t = 0; t + 2 < indices.length; t += 3) {
+    for (let k = 0; k < 3; k++) {
+      const a = indices[t + k]
+      const b = indices[t + ((k + 1) % 3)]
+      if (a === b || seen.get(edgeKey(a, b)) !== 1) continue
+      open.push(a < b ? [a, b] : [b, a])
+    }
   }
   if (open.length === 0) return []
   // Rims joined through shared vertices: union-find over the open edges'
@@ -113,7 +131,7 @@ export interface RimLoop {
  *  read by the caller. */
 export function rimLoops(indices: Uint32Array): RimLoop[] {
   const seen = new Map<number, number>()
-  const key = (a: number, b: number) => (a < b ? a * 4_294_967_296 + b : b * 4_294_967_296 + a)
+  const key = edgeKey
   for (let t = 0; t + 2 < indices.length; t += 3) {
     for (let k = 0; k < 3; k++) {
       const a = indices[t + k]

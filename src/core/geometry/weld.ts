@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /** Merge duplicated vertices of an STL triangle soup into an indexed mesh.
  *  Vertices are matched on exact float bit patterns via an open-addressing
- *  hash table (binary STL repeats vertices bit-identically). */
+ *  hash table (binary STL repeats vertices bit-identically) — with -0 read
+ *  as 0: they are the same point, and a mirror or a negation in the program
+ *  that wrote the file signs a zero one way in one triangle and the other in
+ *  the next. Matched on raw bits they stay two vertices, a crack through a
+ *  closed part (closedShells and the 3MF weld read them the same way). */
 export function weldTriangleSoup(
   soup: Float32Array,
   onProgress?: (text: string) => void,
 ): { positions: Float32Array; indices: Uint32Array } {
   const vertCount = soup.length / 3
   const bits = new Uint32Array(soup.buffer, soup.byteOffset, soup.length)
+  const bit = (i: number) => (bits[i] === 0x80000000 ? 0 : bits[i])
 
   let cap = 16
   while (cap < vertCount * 2) cap <<= 1
@@ -21,18 +26,20 @@ export function weldTriangleSoup(
 
   for (let i = 0; i < vertCount; i++) {
     const j = i * 3
-    const bx = bits[j]
-    const by = bits[j + 1]
-    const bz = bits[j + 2]
+    const bx = bit(j)
+    const by = bit(j + 1)
+    const bz = bit(j + 2)
     let h = hash3(bx, by, bz) & mask
     for (;;) {
       const slot = table[h]
       if (slot === -1) {
         table[h] = outCount
         const o = outCount * 3
-        outPos[o] = soup[j]
-        outPos[o + 1] = soup[j + 1]
-        outPos[o + 2] = soup[j + 2]
+        // Stored as its bits read, so a -0 kept is +0 and the next corner's
+        // comparison against outBits sees what the key saw.
+        outBits[o] = bx
+        outBits[o + 1] = by
+        outBits[o + 2] = bz
         indices[i] = outCount
         outCount++
         break
