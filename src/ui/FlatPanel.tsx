@@ -235,7 +235,8 @@ export function FlatPanel({
                   ? `Calibrated: X ${toDpi(pxPerMm.x).toFixed(2)} · Y ${toDpi(pxPerMm.y).toFixed(2)} px/in.`
                   : `Calibrated: X ${pxPerMm.x.toFixed(4)} · Y ${pxPerMm.y.toFixed(4)} px/${len.word()}.`
               : calSource === 'metadata' && meta
-                ? `Nominal, from the file: ${(meta.x * 25.4).toFixed(0)} dpi — ${len.fmt(imageWidth / meta.x, 1, { bare: true })} × ${len.fmt(imageHeight / meta.y, 1)}.`
+                ? // A file may declare its two axes apart; both are named then.
+                  `Nominal, from the file: ${toDpi(meta.x).toFixed(0) === toDpi(meta.y).toFixed(0) ? toDpi(meta.x).toFixed(0) : `X ${toDpi(meta.x).toFixed(0)} · Y ${toDpi(meta.y).toFixed(0)}`} dpi — ${len.fmt(imageWidth / meta.x, 1, { bare: true })} × ${len.fmt(imageHeight / meta.y, 1)}.`
                 : 'The file declares no physical resolution — sizes are pixels until calibrated.'}
           </p>
 

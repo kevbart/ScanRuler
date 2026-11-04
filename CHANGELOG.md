@@ -10,6 +10,14 @@ saves carry the same number as `appVersion`. How a release is cut is in
 - **Contributors are credited** (2026-11-01). Each publish to this repository now
   names the people whose work it brings as co-authors, starting with Jozkah and
   Starzrng. CONTRIBUTING.md says how it works.
+- **Edge-region fits on a calibrated sheet** (2026-11-03, 2D Measure). The band
+  that lets stray edge points out of a From edge region fit was 0.35 of a pixel
+  before a scale was set and 0.35 mm after it — 8 pixels at 600 dpi — so a
+  neighbouring edge a few pixels away pulled the fit: a line 0.06 mm off, a
+  radius 0.04 mm. It is 0.35 of a pixel either way.
+- **The report names both resolutions of an image** (2026-11-03, 2D Measure). A
+  file declared at 600 × 300 dpi was reported as "nominal 600 dpi"; the report,
+  the CSV and the panel now say X 600 / Y 300 when the two differ.
 
 ## 0.9.4 — 2026-11-01
 

@@ -67,10 +67,15 @@ export function evaluateFlatSource(
   fitOf: (id: number) => FlatFit | null,
 ): FlatFit {
   if (source.type === 'picks') {
-    return evaluateFlatPicks(source.method, picksToDocument(source.picks, pxPerMm), {
-      tangents: tangentsToDocument(source.tangents, pxPerMm),
-      closed: source.closed,
-    })
+    // One image pixel in document units — the larger of the two on an
+    // anisotropic scale — for the fits whose noise floor is a pixel's share.
+    const pixel = pxPerMm ? 1 / Math.min(pxPerMm.x, pxPerMm.y) : 1
+    return evaluateFlatPicks(
+      source.method,
+      picksToDocument(source.picks, pxPerMm),
+      { tangents: tangentsToDocument(source.tangents, pxPerMm), closed: source.closed },
+      pixel,
+    )
   }
   const refs = source.refs.map((id) => {
     const fit = fitOf(id)
