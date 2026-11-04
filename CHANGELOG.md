@@ -7,6 +7,13 @@ saves carry the same number as `appVersion`. How a release is cut is in
 
 ## Unreleased
 
+- **Names in STEP files keep their accents and symbols** (2026-11-03, Export STEP).
+  Every character outside ASCII was written as "?", so Ø10 and ⌀10 both became
+  ?10; they are now encoded as ISO 10303-21 asks (\X2\ … \X0\), and the file is
+  plain ASCII throughout.
+- **A STEP of construction surfaces holding only tori opens** (2026-11-03, Export
+  STEP). It was written as a set of curves, which the format does not allow a
+  surface in, and readers refused it.
 - **More ways to construct points, lines and planes** (2026-11-08, issues
   45 and 46). Under Create element, 3D Measure now also builds:
   - points: the centre of a sphere, circle or torus; where three planes
