@@ -710,11 +710,14 @@ export function findRegions(sketch: Pick<Sketch, 'entities'>): Region[] {
     // The middle of a shape drawn about an axis is a rounding error either
     // side of it: no sign, so the key does not turn with the error.
     const at = (x: number) => (Math.abs(x) < 0.005 ? '0.00' : x.toFixed(2))
+    const holeLoops = holes.map((h) => ({ pieces: piecesOf(h, edges, sketch), polygon: h.polygon }))
     return {
       key: `${ids.join('.')}@${at(c[0])},${at(c[1])}`,
       outer: { pieces: outerPieces, polygon: f.polygon },
-      holes: holes.map((h) => ({ pieces: piecesOf(h, edges, sketch), polygon: h.polygon })),
-      area: f.area - holes.reduce((s, h) => s + Math.abs(h.area), 0),
+      holes: holeLoops,
+      // The exact area (loopArea), not the sampled polygon's, which the
+      // loops above are told apart by.
+      area: Math.abs(loopArea(outerPieces, sketch)) - holeLoops.reduce((s, h) => s + Math.abs(loopArea(h.pieces, sketch)), 0),
       inside: insidePoint(
         f.polygon,
         holes.map((h) => h.polygon),
@@ -1061,6 +1064,48 @@ function joinedRuns(loop: readonly RegionPiece[], sketch: Pick<Sketch, 'entities
     }
   }
   return out
+}
+
+/** Samples a spline stretch's area is read over, per unit of its parameter
+ *  (one segment between two of its points): the shoelace over them is
+ *  within a millionth of the curve's own area for any segment a sketch
+ *  draws. */
+const SPLINE_AREA_SAMPLES = 128
+
+/**
+ * The signed area a loop of stretches encloses — positive anticlockwise —
+ * read off the pieces themselves, not off the polygon drawn for them: the
+ * polygon's chords cut every arc short, a circle of 72 by
+ * 1 − sin(2π/72)/(2π/72) ≈ 0.13 %, and the body extruded from the region
+ * is the exact one. By Green's theorem the loop's area is the sum over its
+ * stretches of ½∮(x dy − y dx): a line's is its chord's shoelace term, an
+ * arc's the same chord's and the circular segment between chord and arc,
+ * r²/2 · (φ − sin φ) for a sweep φ signed by the way the loop runs it. The
+ * chords run between the graph's shared vertices, so the terms close
+ * exactly. A spline has no closed form here; its stretch is summed over
+ * dense samples.
+ */
+function loopArea(pieces: readonly RegionPiece[], sketch: Pick<Sketch, 'entities'>): number {
+  const chord = (a: Vec2, b: Vec2) => (a[0] * b[1] - b[0] * a[1]) / 2
+  let area = 0
+  for (const p of pieces) {
+    const e = sketch.entities.find((x) => x.id === p.entity)
+    if (e?.kind === 'arc' || e?.kind === 'circle') {
+      const phi = p.t1 - p.t0
+      area += chord(p.p0, p.p1) + ((e.r * e.r) / 2) * (phi - Math.sin(phi))
+    } else if (e?.kind === 'spline') {
+      const fit = splineCurve(e)
+      const n = Math.max(SPLINE_SAMPLES_PER_SEGMENT, Math.ceil(Math.abs(p.t1 - p.t0) * SPLINE_AREA_SAMPLES))
+      let last = p.p0
+      for (let i = 1; i < n; i++) {
+        const q = splineAt(fit, p.t0 + ((p.t1 - p.t0) * i) / n)
+        area += chord(last, q)
+        last = q
+      }
+      area += chord(last, p.p1)
+    } else area += chord(p.p0, p.p1)
+  }
+  return area
 }
 
 /** Points round a loop of stretches, for its area and its hit tests: each

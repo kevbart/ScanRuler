@@ -10,6 +10,12 @@ saves carry the same number as `appVersion`. How a release is cut is in
 - **Contributors are credited** (2026-11-01). Each publish to this repository now
   names the people whose work it brings as co-authors, starting with Jozkah and
   Starzrng. CONTRIBUTING.md says how it works.
+- **Sketch regions report their true area** (2026-11-03, Reverse engineer). The
+  area was that of the polygon an arc is drawn with: a circle of R10 read
+  313.761 instead of 314.159. Regions are found as before; only the figure changed.
+- **reverse.body.describe gives a fillet face its length** (2026-11-03, Reverse
+  engineer, agents). Every cylindrical face was given area ÷ circumference, which
+  is a quarter of a fillet's length: an R2 round on a 20 mm edge read 5.
 
 ## 0.9.4 — 2026-11-01
 
