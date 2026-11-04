@@ -5,13 +5,19 @@
 // let go with the scan, and a reference made from the session's own work
 // leaving the search distance as it was set. On a 40 mm box, in the
 // in-process worker — see commandKit.ts.
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { referenceSpacing } from '../src/commands/state'
 import { watchUnsaved } from '../src/app/project'
 import { useDeviation } from '../src/state/deviationStore'
 import { useStore } from '../src/state/store'
 import { boxMesh } from './helpers'
 import { refused, run, startHeadless, stlBytes, type Headless } from './commandKit'
+
+// Each test opens a reference and measures a map in the in-process worker:
+// 8 s alone, and 12-22 s while the whole suite runs beside it — over the
+// 20 s default, so one of them timed out on a full run with nothing wrong.
+// As headlessEngine.test.ts: the time a test may take, not what it checks.
+vi.setConfig({ testTimeout: 60_000 })
 
 const BOX = stlBytes(boxMesh(40, 40))
 const fileOf = (bytes: Uint8Array, name: string) => new File([bytes as BlobPart], name)
