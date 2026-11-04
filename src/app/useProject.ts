@@ -34,8 +34,12 @@ import type { ImportQueue } from './importQueue'
 import { prepareScan, prepareNominal, prepareImage, runImport, type PreparedScan, type PreparedNominal, type PreparedImage } from './imports'
 import { bundleFiles } from './scanFiles'
 
-export const isProjectFile = (name: string) =>
-  name.toLowerCase().endsWith(`.${PROJECT_EXTENSION}`)
+/** A project file by its name — with the copy number a browser or the system
+ *  may append after the extension when one of that name is already in the
+ *  folder: `MyProject.scanruler-2` (issue 83), `MyProject.scanruler (1)`. The
+ *  archive is the same; refusing it for its name left a save unopenable. */
+const PROJECT_NAME = new RegExp(`\\.${PROJECT_EXTENSION}(?:-\\d+| ?\\(\\d+\\))?$`, 'i')
+export const isProjectFile = (name: string) => PROJECT_NAME.test(name)
 
 export function useProject({
   sources,

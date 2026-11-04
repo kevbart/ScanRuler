@@ -10,6 +10,10 @@ saves carry the same number as `appVersion`. How a release is cut is in
 - **Contributors are credited** (2026-11-01). Each publish to this repository now
   names the people whose work it brings as co-authors, starting with Jozkah and
   Starzrng. CONTRIBUTING.md says how it works.
+- **A project saved twice into one folder opens** (2026-11-03, issue 83). The
+  browser names the second `Name.scanruler-2`, which was refused as an unknown
+  file; a copy number after the extension, `-2` or ` (1)`, is now read as the
+  project it is.
 
 ## 0.9.4 — 2026-11-01
 
