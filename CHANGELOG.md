@@ -7,6 +7,12 @@ saves carry the same number as `appVersion`. How a release is cut is in
 
 ## Unreleased
 
+- **Sketch regions report their true area** (2026-11-03, Reverse engineer). The
+  area was that of the polygon an arc is drawn with: a circle of R10 read
+  313.761 instead of 314.159. Regions are found as before; only the figure changed.
+- **reverse.body.describe gives a fillet face its length** (2026-11-03, Reverse
+  engineer, agents). Every cylindrical face was given area ÷ circumference, which
+  is a quarter of a fillet's length: an R2 round on a 20 mm edge read 5.
 - **More ways to construct points, lines and planes** (2026-11-08, issues
   45 and 46). Under Create element, 3D Measure now also builds:
   - points: the centre of a sphere, circle or torus; where three planes

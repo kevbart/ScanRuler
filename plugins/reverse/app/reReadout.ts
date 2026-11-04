@@ -276,6 +276,28 @@ const featureName = (id: number) => {
   return [...re.features, ...re.rolledBack].find((f) => f.id === Math.floor(id))?.name ?? null
 }
 
+/** A cylindrical face's length along its axis (see faceOut), or nothing
+ *  where it cannot be read. */
+function lengthAlongAxis(face: FaceInfo, mesh: KernelMesh | undefined): { length?: number } {
+  const fp = face.fingerprint
+  if (!fp.radius) return {}
+  if (face.fullTurn !== false && face.fullTurn !== undefined) return { length: fp.area / (2 * Math.PI * fp.radius) }
+  if (!mesh?.faceHash) return {}
+  const p = mesh.positions
+  let lo = Infinity
+  let hi = -Infinity
+  for (let t = 0; t < mesh.faceHash.length; t++) {
+    if (mesh.faceHash[t] !== face.hash) continue
+    for (let k = 0; k < 3; k++) {
+      const i = mesh.indices[3 * t + k] * 3
+      const along = p[i] * fp.dir[0] + p[i + 1] * fp.dir[1] + p[i + 2] * fp.dir[2]
+      lo = Math.min(lo, along)
+      hi = Math.max(hi, along)
+    }
+  }
+  return hi >= lo ? { length: hi - lo } : {}
+}
+
 /** A face of a body as reverse.body.describe lists it. */
 export function faceOut(face: FaceInfo, index: number, mesh: KernelMesh | undefined) {
   const fp = face.fingerprint
@@ -289,8 +311,12 @@ export function faceOut(face: FaceInfo, index: number, mesh: KernelMesh | undefi
     ...(round ? { axis: fp.dir } : { normal: fp.dir }),
     ...(fp.radius !== undefined ? { radius: fp.radius, diameter: 2 * fp.radius } : {}),
     ...(fp.center ? { center: fp.center } : {}),
-    // A full round face's length along its axis, read off its area.
-    ...(fp.kind === 'cylinder' && fp.radius ? { length: fp.area / (2 * Math.PI * fp.radius) } : {}),
+    // A round face's length along its axis: a full one's read off its
+    // area, area / (2πr); a part of a turn — a fillet's quarter round —
+    // covers only its sweep of that, so area / (2πr) would be a fraction
+    // of its length: it is measured along the axis on its triangles, and
+    // with no mesh to measure on, not given.
+    ...(fp.kind === 'cylinder' && fp.radius ? lengthAlongAxis(face, mesh) : {}),
     ...(boss !== null ? { side: boss ? 'boss' : 'bore' } : {}),
     madeBy: { id: fp.origin, name: featureName(fp.origin) },
     // A pattern's copy: made by what made the face it copies, and which
