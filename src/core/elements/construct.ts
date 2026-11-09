@@ -22,7 +22,7 @@ import {
   sub,
 } from '../vec'
 import { orthoBasis } from '../fit/linalg'
-import { fmtLen, type DisplayUnits } from '../units'
+import { fixedText, fmtLen, type DisplayUnits } from '../units'
 import type { RefRole } from './refs'
 import { refAxis, refPlane, refPoint, type AxisRef } from './refs'
 
@@ -745,8 +745,12 @@ export function evaluateConstruction(
       const p = need(refPlane(refs[0]), 'the source plane')
       const [offset] = params
       if (!Number.isFinite(offset)) throw new ConstructionError('Enter the offset distance.')
+      // The source's form error and residual extremes stay with the source:
+      // a constructed plane has no measured surface, and carrying them would
+      // give a flatness and a surface range to a plane nothing was measured on.
+      const { formError: _form, residualMin: _lo, residualMax: _hi, ...shape } = p
       return {
-        ...p,
+        ...shape,
         ...NO_FIT_STATS,
         center: addScaled(p.center, p.normal, offset),
       } satisfies PlaneFit
@@ -1079,7 +1083,7 @@ export function describeConstruction(
     case 'line-plane-point':
       return `square to ${a} through ${b}`
     case 'line-coords':
-      return `direction (${params.slice(0, 3).map((v) => v.toFixed(3)).join(', ')}) through ${at(params.slice(3, 6))}`
+      return `direction (${params.slice(0, 3).map((v) => fixedText(v, 3)).join(', ')}) through ${at(params.slice(3, 6))}`
     case 'plane-offset-point':
       return `parallel to ${a} through ${b}`
     case 'plane-line-point':
@@ -1094,7 +1098,7 @@ export function describeConstruction(
     case 'plane-tangent-cylinder':
       return `tangent to ${a} toward ${b}`
     case 'plane-coords':
-      return `normal (${params.slice(0, 3).map((v) => v.toFixed(3)).join(', ')}) through ${at(params.slice(3))}`
+      return `normal (${params.slice(0, 3).map((v) => fixedText(v, 3)).join(', ')}) through ${at(params.slice(3))}`
     case 'plane-symmetry': {
       const [, , , , , , rms, matched, sampled] = params
       const fit =
@@ -1109,7 +1113,7 @@ export function describeConstruction(
     case 'circle-coords':
       return `Ø ${fmtLen(params[0], units, 3)}, normal (${params
         .slice(1, 4)
-        .map((v) => v.toFixed(3))
+        .map((v) => fixedText(v, 3))
         .join(', ')}) at ${at(params.slice(4))}`
     default:
       return method

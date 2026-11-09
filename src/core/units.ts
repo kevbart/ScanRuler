@@ -51,11 +51,18 @@ export interface FmtOptions {
   signed?: boolean
 }
 
+/** `v.toFixed(decimals)` without the "-0.000" a tiny negative rounds to —
+ *  for every figure written to fixed decimals, lengths or not: a direction's
+ *  components, an angle. */
+export function fixedText(v: number, decimals: number): string {
+  const text = v.toFixed(decimals)
+  return Number(text) === 0 ? (0).toFixed(decimals) : text
+}
+
 /** Fixed decimals without the "-0.000" a tiny negative rounds to. */
 function fixed(v: number, decimals: number, signed: boolean): string {
-  const text = v.toFixed(decimals)
-  if (Number(text) === 0) return (0).toFixed(decimals)
-  return signed && v > 0 ? `+${text}` : text
+  const text = fixedText(v, decimals)
+  return signed && v > 0 && Number(text) !== 0 ? `+${text}` : text
 }
 
 function fmt(value: number, units: DisplayUnits, mmDecimals: number, power: 1 | 2 | 3, opts?: FmtOptions): string {

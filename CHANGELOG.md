@@ -7,6 +7,11 @@ saves carry the same number as `appVersion`. How a release is cut is in
 
 ## Unreleased
 
+- **An offset plane has no flatness of its own** (2026-11-03, 3D Measure). It
+  carried its source face's form error, so Flatness on it read the face's and a
+  Point – Plane to it gave a surface range nothing was measured on.
+- **No "-0.00" in readouts** (2026-11-03). A value a hair under zero printed with
+  its sign: Δ -0.00°, a normal or direction of (-0.000, …).
 - **More ways to construct points, lines and planes** (2026-11-08, issues
   45 and 46). Under Create element, 3D Measure now also builds:
   - points: the centre of a sphere, circle or torus; where three planes

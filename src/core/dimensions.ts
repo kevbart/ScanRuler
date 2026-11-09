@@ -25,7 +25,7 @@ import {
 } from './elements/refs'
 import { hasDiameter } from './elements/assumed'
 import { TOLERANCE_TYPES, evaluateTolerance, type ToleranceOptions } from './tolerances'
-import { fmtLen, fromDisplay, lengthDecimals, unitWord, type DisplayUnits } from './units'
+import { fixedText, fmtLen, fromDisplay, lengthDecimals, unitWord, type DisplayUnits } from './units'
 import {
   acuteAngle,
   add,
@@ -375,7 +375,7 @@ export interface Verdict {
 }
 
 const inUnit = (v: number, unit: DimensionUnit, units: DisplayUnits): string =>
-  unit === '°' ? `${v.toFixed(2)}°` : fmtLen(v, units, 3)
+  unit === '°' ? `${fixedText(v, 2)}°` : fmtLen(v, units, 3)
 const signedInUnit = (v: number, unit: DimensionUnit, units: DisplayUnits): string =>
   `${v >= 0 ? '+' : ''}${inUnit(v, unit, units)}`
 
