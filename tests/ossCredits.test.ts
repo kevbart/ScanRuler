@@ -6,9 +6,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 // @ts-expect-error A script, without types.
 import { creditLines, emailKey, people } from '../scripts/oss-credits.mjs'
+
+// A case builds and walks a scratch git history: 22 s in a full run on a busy
+// machine, over the 20 s default. The time a test may take, not what it checks.
+vi.setConfig({ testTimeout: 60_000 })
 
 const SCRIPT = fileURLToPath(new URL('../scripts/oss-credits.mjs', import.meta.url))
 const OWNER = 'owner@example.com'

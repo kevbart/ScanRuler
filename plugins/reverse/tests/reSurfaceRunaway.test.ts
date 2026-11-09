@@ -15,6 +15,11 @@ import { ReKernel } from '../core/kernel'
 import { DEFAULT_SURFACE_FIT, evalSurface, fitSurface, fitSurfaceReported, gridArea, gridOf, meshTriangles, PULL, runAway, type SurfaceFitResult } from '../core/surfaceFit'
 import { build } from './reKit'
 
+// Surfaces built in the kernel, as in reBuild.test.ts: up to 35 s in a full run
+// on a busy machine, over the 20 s default. The time a test may take, not what
+// it checks.
+vi.setConfig({ testTimeout: 180_000 })
+
 const kernelPromise = ReKernel.load()
 
 /** A deterministic noise source, so a failing case fails the same way. */

@@ -7,6 +7,14 @@ saves carry the same number as `appVersion`. How a release is cut is in
 
 ## Unreleased
 
+- **The tests hold on a busy machine** (2026-11-08, development). Six tests ran
+  past their time limits when the whole suite ran beside other work — 20 to 35 s
+  against 20 s, and 10 s for loading the Reverse engineer's commands — the first
+  browser check's page load passed 30 s on a cold dev server, the agent
+  server's 130,000-call batch outran its five asks for the answer, and one test
+  asserted a shell diagnosis that runs on a clock. Their limits are raised, and
+  that diagnosis is given all the time it needs in its test; what they check is
+  unchanged.
 - **More ways to construct points, lines and planes** (2026-11-08, issues
   45 and 46). Under Create element, 3D Measure now also builds:
   - points: the centre of a sphere, circle or torus; where three planes

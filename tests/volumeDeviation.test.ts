@@ -7,11 +7,16 @@
 // gathered from the map's pieces and cut into short triangles, the same
 // surface.
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { identityRigid, rigidFromAxisAngle } from '../src/core/deviation/rigid'
 import { compact, noScanPatchOf, volumeDeviation, type VolumeMesh } from '../src/core/deviation/volume'
 import { meshArea, subdivideForMap } from '../src/core/deviation/onReference'
 import { WindingTree } from '../src/core/deviation/winding'
+
+// Each case measures a volume map in the worker: 10-20 s in a full run on a
+// busy machine, over the 20 s default. The time a test may take, not what it
+// checks.
+vi.setConfig({ testTimeout: 60_000 })
 
 /** A box's faces cut into quads about `step` across, wound outward; `skip`
  *  leaves faces out (0 −x, 1 +x, 2 −y, 3 +y, 4 −z, 5 +z). */

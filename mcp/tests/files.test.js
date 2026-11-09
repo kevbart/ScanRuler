@@ -300,12 +300,14 @@ test('a batch file of more calls than a spread can pass still answers', async ()
   await writeFile(join(dir, 'many.json'), JSON.stringify(Array.from({ length: 130_000 }, () => ({ tool: 'demo_echo' }))))
   const r = await c.call('scanruler_batch', { file: join(dir, 'many.json'), wait: false })
   // A wait answers "running" at the answer limit (45 s), which this batch
-  // can pass on a busy machine; an agent asks again, and so does this.
+  // can pass on a busy machine; an agent asks again, and so does this — by a
+  // deadline rather than a count: five asks (225 s) were not enough once
+  // (232 s) on a machine running an emulator beside the suite.
   let done
-  for (let asked = 0; asked < 5; asked++) {
+  const deadline = Date.now() + 10 * 60_000
+  do {
     done = await c.call('scanruler_wait', { for: 'job', job: r.json.job, timeoutSeconds: 600 })
-    if (done.error || done.json.state !== 'running') break
-  }
+  } while (!done.error && done.json.state === 'running' && Date.now() < deadline)
   assert.equal(done.error, false, done.text)
   assert.equal(done.json.state, 'done', done.text)
   await c.close()

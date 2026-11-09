@@ -22,7 +22,9 @@ beforeAll(async () => {
   await import('../plugin')
   ;({ sketchOf } = await import('../app/reSketchInput'))
   ;({ featureOf } = await import('../app/reSchemas'))
-})
+  // Loading the plugin and its commands passed the 10 s hook default in a
+  // full run, failing all seven tests before one ran.
+}, 60_000)
 
 /** Two lines meeting at (10, 0), their relations inferred — ids 3 up. */
 function inferred(): Sketch {

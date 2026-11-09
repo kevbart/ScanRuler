@@ -2,12 +2,16 @@
 // A textured scan's colours, read onto its vertices, and a CAD part opened
 // in a scan's place, cut finely enough to be worked on as one.
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { parseOBJ } from '../src/core/parsers/obj'
 import { parseMtl, sampleTexture, type TextureImage } from '../src/core/parsers/objTexture'
 import { parseSTEP } from '../src/core/parsers/step'
 import { buildMeshGraph } from '../src/core/geometry/buildGraph'
 import { cubeStep, stepBuffer } from './stepFixtures'
+
+// Cutting the textured cube into its grid took 20.5 s in a full run on a busy
+// machine, over the 20 s default. The time a test may take, not what it checks.
+vi.setConfig({ testTimeout: 60_000 })
 
 const encode = (text: string) => new TextEncoder().encode(text).buffer
 

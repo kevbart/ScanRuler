@@ -19,6 +19,16 @@ import { XY } from './reKit'
 // Kernel builds and real-scan fits run long, and longer on a slow machine.
 vi.setConfig({ testTimeout: 180_000 })
 
+// A failed shell's diagnosis runs on a clock (shellDiagnosisBudget: twice the
+// step's own time, 5 s at least), so on a busy machine it skipped trying the
+// wall with no face opened and its message said less than the one asserted
+// below — the test failed now and then with nothing wrong. Here it has all
+// the time it needs; reShellBudget.test.ts checks what the budget cuts short.
+vi.mock('../core/diagnose', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../core/diagnose')>()
+  return { ...actual, shellDiagnosisBudget: () => ({ ms: Infinity, perTry: 0 }) }
+})
+
 const kernelPromise = ReKernel.load()
 
 const NO_STATS = { sigma: 0, usedPoints: 0, regionSize: 0 }

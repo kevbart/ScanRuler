@@ -120,7 +120,10 @@ export async function launchApp({ width = 1500, height = 950, protocolTimeout, u
     })
   }
   try {
-    await page.goto(url, { waitUntil: 'networkidle0' })
+    // The first load from a fresh dev server is where Vite pre-bundles the
+    // dependencies, the workers' too: past puppeteer's 30 s default on a busy
+    // machine, so the first check of a run failed to start with nothing wrong.
+    await page.goto(url, { waitUntil: 'networkidle0', timeout: 120_000 })
     await page.waitForSelector('.panel')
   } catch (error) {
     fail(`App did not start: ${error.message}`)
